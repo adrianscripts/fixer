@@ -1,12 +1,12 @@
 @echo off
 title adrian's fixer
-color 0a
+color 0b
 setlocal EnableDelayedExpansion
 
 :: ==========================================================
 :: VERSION + UPDATE PATHS
 :: ==========================================================
-set "FIXER_VERSION=1.1 beta"
+set "FIXER_VERSION=1.2 beta"
 set "UPDATE_URL=https://raw.githubusercontent.com/adrianscripts/fixer/refs/heads/main/version.txt"
 set "UPDATE_SCRIPT_URL=https://raw.githubusercontent.com/adrianscripts/fixer/refs/heads/main/adrians_fixer.bat"
 
@@ -22,7 +22,7 @@ if %errorlevel% neq 0 (
 chcp 65001 >nul
 
 :: ==========================================================
-:: ALWAYS-ON TIMER RESOLUTION (universal safe)
+:: ALWAYS-ON TIMER RESOLUTION (safe, universal)
 :: ==========================================================
 powershell -NoProfile -Command "try { rundll32.exe winmm.dll,timeBeginPeriod 1 } catch {}" >nul 2>&1
 
@@ -37,54 +37,50 @@ call :check_update
 :menu
 cls
 echo.
-echo.                 ███████╗██╗██╗  ██╗███████╗██████╗
-echo.                 ██╔════╝██║██║ ██╔╝██╔════╝██╔══██╗
-echo.                 █████╗  ██║█████╔╝ █████╗  ██████╔╝
-echo.                 ██╔══╝  ██║██╔═██╗ ██╔══╝  ██╔══██╗
-echo.                 ██║     ██║██║  ██╗███████╗██║  ██║
-echo.                 ╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
+echo  ╔════════════════════════════════════════════════════════════════════╗
+echo  ║                          ADRIAN'S FIXER                            ║
+echo  ║                           version %FIXER_VERSION%                             ║
+echo  ║                        status: %UPDATE_STATUS%║
+echo  ╚════════════════════════════════════════════════════════════════════╝
 echo.
-echo.                            adrian's fixer
-echo.                           version %FIXER_VERSION%
-echo.                      status: %UPDATE_STATUS%
+echo      [ A ] microsoft fix          [ B ] discord fix           [ C ] fan fix
 echo.
-
-echo.      [  1 ] [ + ] microsoft fix        [  2 ] [ D ] discord fix        [  3 ] [ F ] fan fix
+echo      [ D ] steam fix              [ E ] epic fix              [ F ] gpu repair
 echo.
-echo.      [  4 ] [ G ] steam fix            [  5 ] [ E ] epic fix            [  6 ] [ GPU ] gpu repair
+echo      [ G ] system repair          [ H ] cleanup               [ I ] debloat
 echo.
-echo.      [  7 ] [ + ] system repair        [  8 ] [ CLN ] cleanup           [  9 ] [ DBL ] debloat
+echo      [ J ] network reset          [ K ] ram modes             [ L ] startup tools
 echo.
-echo.     [ 10 ] [ NET ] network reset       [ 11 ] [ RAM ] ram modes         [ 12 ] [ ST ] startup tools
+echo      [ M ] redistributables       [ N ] activation fix        [ O ] timer info
 echo.
-echo.     [ 13 ] [ RED ] redistributables    [ 14 ] [ ACT ] activation fix    [ 15 ] [ TIM ] timer res (auto)
+echo      [ P ] game mode              [ Q ] restore backup        [ R ] exit
 echo.
-echo.     [ 16 ] [ GM ] game mode            [ 17 ] [ EXIT ] exit
-echo.
-
 set /p choice= choose an option: 
 
-if "%choice%"=="1"  goto microsoft
-if "%choice%"=="2"  goto discord
-if "%choice%"=="3"  goto fanfix
-if "%choice%"=="4"  goto steam
-if "%choice%"=="5"  goto epic
-if "%choice%"=="6"  goto gpu
-if "%choice%"=="7"  goto systemrepair
-if "%choice%"=="8"  goto cleanup
-if "%choice%"=="9"  goto debloat
-if "%choice%"=="10" goto network
-if "%choice%"=="11" goto rammenu
-if "%choice%"=="12" goto startup
-if "%choice%"=="13" goto redist
-if "%choice%"=="14" goto activation
-if "%choice%"=="15" goto timerinfo
-if "%choice%"=="16" goto gamemode
-if "%choice%"=="17" exit /b
+set "choice=%choice:~0,1%"
+if /i "%choice%"=="A" goto microsoft
+if /i "%choice%"=="B" goto discord
+if /i "%choice%"=="C" goto fanfix
+if /i "%choice%"=="D" goto steam
+if /i "%choice%"=="E" goto epic
+if /i "%choice%"=="F" goto gpu
+if /i "%choice%"=="G" goto systemrepair
+if /i "%choice%"=="H" goto cleanup
+if /i "%choice%"=="I" goto debloat
+if /i "%choice%"=="J" goto network
+if /i "%choice%"=="K" goto rammenu
+if /i "%choice%"=="L" goto startup
+if /i "%choice%"=="M" goto redist
+if /i "%choice%"=="N" goto activation
+if /i "%choice%"=="O" goto timerinfo
+if /i "%choice%"=="P" goto gamemode
+if /i "%choice%"=="Q" goto restorebackup
+if /i "%choice%"=="R" exit /b
 goto menu
 
+
 :: ==========================================================
-:: UPDATE CHECK FUNCTION
+:: UPDATE CHECK + DOWNGRADE PROTECTION
 :: ==========================================================
 :check_update
 set "REMOTE_VERSION="
@@ -96,44 +92,79 @@ for /f "usebackq delims=" %%V in (`
 )
 
 if not defined REMOTE_VERSION (
-    set "UPDATE_STATUS=update check failed"
+    set "UPDATE_STATUS=update check failed                     "
     goto :eof
 )
 
 if /i "%REMOTE_VERSION%"=="%FIXER_VERSION%" (
-    set "UPDATE_STATUS=latest version"
+    set "UPDATE_STATUS=latest version                          "
     goto :eof
 )
 
-set "UPDATE_STATUS=update available → %REMOTE_VERSION%"
+:: --- basic downgrade protection using numeric version (major.minor) ---
+set "CURR_NUM=%FIXER_VERSION%"
+for /f "tokens=1 delims= " %%A in ("%CURR_NUM%") do set "CURR_NUM=%%A"
+for /f "tokens=1,2 delims=." %%A in ("%CURR_NUM%") do (
+    set "CURR_MAJOR=%%A"
+    set "CURR_MINOR=%%B"
+)
+if not defined CURR_MINOR set "CURR_MINOR=0"
+
+set "REM_NUM=%REMOTE_VERSION%"
+for /f "tokens=1 delims= " %%A in ("%REM_NUM%") do set "REM_NUM=%%A"
+for /f "tokens=1,2 delims=." %%A in ("%REM_NUM%") do (
+    set "REM_MAJOR=%%A"
+    set "REM_MINOR=%%B"
+)
+if not defined REM_MINOR set "REM_MINOR=0"
+
+set /a CURR_MAJOR_PLUS=CURR_MAJOR+0
+set /a CURR_MINOR_PLUS=CURR_MINOR+0
+set /a REM_MAJOR_PLUS=REM_MAJOR+0
+set /a REM_MINOR_PLUS=REM_MINOR+0
+
+if %REM_MAJOR_PLUS% LSS %CURR_MAJOR_PLUS% (
+    set "UPDATE_STATUS=downgrade blocked (%REMOTE_VERSION%)      "
+    goto :eof
+)
+if %REM_MAJOR_PLUS% EQU %CURR_MAJOR_PLUS% if %REM_MINOR_PLUS% LSS %CURR_MINOR_PLUS% (
+    set "UPDATE_STATUS=downgrade blocked (%REMOTE_VERSION%)      "
+    goto :eof
+)
+
+set "UPDATE_STATUS=update available -> %REMOTE_VERSION%         "
 call :auto_update
 goto :eof
 
+
 :: ==========================================================
-:: AUTO UPDATE ENGINE (safe)
+:: AUTO UPDATE + BACKUP
 :: ==========================================================
 :auto_update
 set "NEW_FILE=%TEMP%\adrians_fixer_new.bat"
-
 powershell -NoProfile -Command ^
 "try { Invoke-WebRequest '%UPDATE_SCRIPT_URL%' -OutFile '%NEW_FILE%' -UseBasicParsing } catch {}" >nul 2>&1
 
 if not exist "%NEW_FILE%" (
-    set "UPDATE_STATUS=update check failed"
+    set "UPDATE_STATUS=update failed                            "
     goto :eof
 )
 
+set "SCRIPT_PATH=%~f0"
+set "BACKUP_FILE=%~dp0adrians_fixer_backup.bat"
 set "UPDATER=%TEMP%\af_updater.bat"
+
 (
 echo @echo off
-echo timeout /t 1 ^>nul
-echo copy /y "%NEW_FILE%" "%~f0" ^>nul
-echo start "" "%~f0"
+echo copy /y "%SCRIPT_PATH%" "%BACKUP_FILE%" ^>nul
+echo copy /y "%NEW_FILE%" "%SCRIPT_PATH%" ^>nul
+echo start "" "%SCRIPT_PATH%"
 echo exit
 ) > "%UPDATER%"
 
 start "" "%UPDATER%"
 exit /b
+
 
 :: ==========================================================
 :: SIMPLE ANIM
@@ -143,6 +174,26 @@ exit /b
 ping -n 2 127.0.0.1 >nul
 echo.
 goto :eof
+
+
+:: ==========================================================
+:: BACKUP RESTORE
+:: ==========================================================
+:restorebackup
+cls
+echo restoring previous backup...
+call :anim
+set "BACKUP_FILE=%~dp0adrians_fixer_backup.bat"
+if not exist "%BACKUP_FILE%" (
+    echo no backup found.
+    pause
+    goto menu
+)
+copy /y "%BACKUP_FILE%" "%~f0" >nul
+echo backup restored. restarting...
+start "" "%~f0"
+exit /b
+
 
 :: ==========================================================
 :: RAM MODES
@@ -217,6 +268,7 @@ echo done.
 pause
 goto rammenu
 
+
 :: ==========================================================
 :: FAN FIX
 :: ==========================================================
@@ -241,6 +293,7 @@ echo fan fix applied — allow 1–3 minutes.
 pause
 goto menu
 
+
 :: ==========================================================
 :: ACTIVATION FIX
 :: ==========================================================
@@ -264,16 +317,18 @@ echo done.
 pause
 goto menu
 
+
 :: ==========================================================
 :: TIMER RES INFO
 :: ==========================================================
 :timerinfo
 cls
 echo High-resolution timer is automatically active.
-echo Improves input latency and frame pacing.
+echo This can improve input latency and frame pacing.
 echo.
 pause
 goto menu
+
 
 :: ==========================================================
 :: GAME MODE
@@ -305,6 +360,7 @@ echo game mode activated.
 pause
 goto menu
 
+
 :: ==========================================================
 :: MICROSOFT FIX
 :: ==========================================================
@@ -326,6 +382,7 @@ echo done.
 pause
 goto menu
 
+
 :: ==========================================================
 :: DISCORD FIX
 :: ==========================================================
@@ -342,6 +399,7 @@ echo done.
 pause
 goto menu
 
+
 :: ==========================================================
 :: STEAM FIX
 :: ==========================================================
@@ -356,6 +414,7 @@ echo done.
 pause
 goto menu
 
+
 :: ==========================================================
 :: EPIC FIX
 :: ==========================================================
@@ -368,6 +427,7 @@ rmdir /s /q "%localappdata%\EpicGamesLauncher\Saved\webcache" >nul 2>&1
 echo done.
 pause
 goto menu
+
 
 :: ==========================================================
 :: GPU REPAIR
@@ -384,6 +444,7 @@ echo done.
 pause
 goto menu
 
+
 :: ==========================================================
 :: SYSTEM REPAIR
 :: ==========================================================
@@ -397,6 +458,7 @@ echo done.
 pause
 goto menu
 
+
 :: ==========================================================
 :: CLEANUP
 :: ==========================================================
@@ -409,6 +471,7 @@ del /f /s /q "C:\Windows\Temp\*" >nul 2>&1
 echo done.
 pause
 goto menu
+
 
 :: ==========================================================
 :: DEBLOAT
@@ -424,6 +487,7 @@ echo done.
 pause
 goto menu
 
+
 :: ==========================================================
 :: NETWORK RESET
 :: ==========================================================
@@ -438,6 +502,7 @@ echo done.
 pause
 goto menu
 
+
 :: ==========================================================
 :: STARTUP TOOLS
 :: ==========================================================
@@ -450,6 +515,7 @@ start "" taskmgr
 pause
 goto menu
 
+
 :: ==========================================================
 :: REDISTRIBUTABLES
 :: ==========================================================
@@ -457,7 +523,7 @@ goto menu
 cls
 echo installing redistributables...
 call :anim
-powershell -NoProfile -Command "try { Invoke-WebRequest 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile $env:TEMP\vc_redist.exe } catch {}" >nul 2>&1
+powershell -NoProfile -Command "try { Invoke-WebRequest 'https://aka.ms/vs/17/release/vc_redist.exe' -OutFile $env:TEMP\vc_redist.exe } catch {}" >nul 2>&1
 if exist "%TEMP%\vc_redist.exe" start /wait "" "%TEMP%\vc_redist.exe" /install /quiet /norestart
 echo done.
 pause
