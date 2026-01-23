@@ -1,576 +1,541 @@
 @echo off
 title adrian's fixer
-color 0b
+color 0a
 setlocal EnableDelayedExpansion
 
-:: ==========================================================
-:: VERSION + UPDATE PATHS
-:: ==========================================================
-set "FIXER_VERSION=1.3 stable"
-set "UPDATE_URL=https://raw.githubusercontent.com/adrianscripts/fixer/refs/heads/main/version.txt"
-set "UPDATE_SCRIPT_URL=https://raw.githubusercontent.com/adrianscripts/fixer/refs/heads/main/adrians_fixer.bat"
-
-:: ==========================================================
-:: ADMIN CHECK
-:: ==========================================================
+:: ========= ADMIN CHECK =========
 >nul 2>&1 net session
-if %errorlevel% neq 0 (
-    powershell -NoProfile -Command "Start-Process '%~f0' -Verb RunAs"
+if %errorlevel% NEQ 0 (
+    echo requesting administrator...
+    powershell -Command "Start-Process '%~f0' -Verb RunAs"
     exit /b
 )
 
+:: ========= UNICODE =========
 chcp 65001 >nul
 
-:: ==========================================================
-:: OS DETECTION (WIN 10 vs WIN 11)
-:: ==========================================================
-call :detect_os
+:: ========= OS DETECT =========
+set "winver=unknown"
+ver | find "Windows 10" >nul && set "winver=10"
+ver | find "Windows 11" >nul && set "winver=11"
 
-:: ==========================================================
-:: ALWAYS-ON TIMER RESOLUTION
-:: ==========================================================
-powershell -NoProfile -Command "try { rundll32.exe winmm.dll,timeBeginPeriod 1 } catch {}" >nul 2>&1
-
-:: ==========================================================
-:: UPDATE CHECK
-:: ==========================================================
-call :check_update
-
-:: ==========================================================
-:: MAIN MENU
-:: ==========================================================
 :menu
 cls
 echo.
-echo  ╔══════════════════════════════════════════════════════════════════╗
-echo  ║                          ADRIAN'S FIXER                          ║
-echo  ║                           version %FIXER_VERSION%                       ║
-echo  ║                     %OS_NAME%                     ║
-echo  ║                        status: %UPDATE_STATUS%║
-echo  ╚══════════════════════════════════════════════════════════════════╝
+echo.                 ███████╗██╗██╗  ██╗███████╗██████╗
+echo.                 ██╔════╝██║██║ ██╔╝██╔════╝██╔══██╗
+echo.                 █████╗  ██║█████╔╝ █████╗  ██████╔╝
+echo.                 ██╔══╝  ██║██╔═██╗ ██╔══╝  ██╔══██╗
+echo.                 ██║     ██║██║  ██╗███████╗██║  ██║
+echo.                 ╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
+echo.
+echo.                              adrian's fixer
+echo.
+echo.      [ 1 ] microsoft fix         [ 2 ] discord fix         [ 3 ] fan fix
+echo.      [ 4 ] steam fix             [ 5 ] epic fix            [ 6 ] gpu repair
+echo.      [ 7 ] system repair         [ 8 ] cleanup             [ 9 ] debloat
+echo.     [ 10 ] network reset        [ 11 ] ram modes          [ 12 ] startup tools
+echo.     [ 13 ] redistributables     [ 14 ] exit
+echo.     [ 15 ] GAME MODE
 echo.
 
-echo      [ A ] microsoft fix         [ B ] discord fix          [ C ] fan fix
-echo.
-echo      [ D ] steam fix             [ E ] epic fix             [ F ] gpu repair
-echo.
-echo      [ G ] system repair         [ H ] cleanup              [ I ] debloat
-echo.
-echo      [ J ] network reset         [ K ] ram modes            [ L ] startup tools
-echo.
-echo      [ M ] redistributables      [ N ] activation fix       [ O ] timer info
-echo.
-
-if "%OS_MAJOR%"=="11" (
-    echo      [ P ] win11 interface reset    (available)
-) else (
-    echo      [ P ] win11 interface reset    (disabled on win10)
+:: ===== OS-SPECIFIC WARNINGS (RED TEXT) =====
+if /i "%winver%"=="10" (
+    color 0c
+    echo.   note: some gpu / game mode power tweaks are tuned for newer builds.
+    echo.         unsupported parts will just be skipped, no errors.
+    color 0a
 )
+if /i "%winver%"=="11" (
+    color 0c
+    echo.   note: some maintenance / fan tasks may not exist on your build.
+    echo.         if missing, they are safely ignored.
+    color 0a
+)
+
 echo.
+set /p choice=               choose an option: 
 
-echo      [ Q ] game mode             [ R ] restore backup        [ S ] exit
-echo.
-
-set /p choice= choose an option: 
-set "choice=%choice:~0,1%"
-
-if /i "%choice%"=="A" goto microsoft
-if /i "%choice%"=="B" goto discord
-if /i "%choice%"=="C" goto fanfix
-if /i "%choice%"=="D" goto steam
-if /i "%choice%"=="E" goto epic
-if /i "%choice%"=="F" goto gpu
-if /i "%choice%"=="G" goto systemrepair
-if /i "%choice%"=="H" goto cleanup
-if /i "%choice%"=="I" goto debloat
-if /i "%choice%"=="J" goto network
-if /i "%choice%"=="K" goto rammenu
-if /i "%choice%"=="L" goto startup
-if /i "%choice%"=="M" goto redist
-if /i "%choice%"=="N" goto activation
-if /i "%choice%"=="O" goto timerinfo
-if /i "%choice%"=="P" goto win11reset
-if /i "%choice%"=="Q" goto gamemode
-if /i "%choice%"=="R" goto restorebackup
-if /i "%choice%"=="S" exit /b
+if "%choice%"=="1"  goto microsoft
+if "%choice%"=="2"  goto discord
+if "%choice%"=="3"  goto fanfix
+if "%choice%"=="4"  goto steam
+if "%choice%"=="5"  goto epic
+if "%choice%"=="6"  goto gpu
+if "%choice%"=="7"  goto systemrepair
+if "%choice%"=="8"  goto cleanup
+if "%choice%"=="9"  goto debloat
+if "%choice%"=="10" goto network
+if "%choice%"=="11" goto rammenu
+if "%choice%"=="12" goto startup
+if "%choice%"=="13" goto redist
+if "%choice%"=="14" exit
+if "%choice%"=="15" goto gamemode
 goto menu
 
 
-:: ==========================================================
-:: OS DETECTION
-:: ==========================================================
-:detect_os
-set "OS_BUILD="
-for /f "tokens=3" %%B in ('reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v CurrentBuildNumber ^| find "REG_"') do set "OS_BUILD=%%B"
-if not defined OS_BUILD (
-    set "OS_NAME=Windows (unknown build)"
-    set "OS_MAJOR=?"
-    goto :eof
-)
 
-set /a OS_BUILD_NUM=%OS_BUILD%
-if %OS_BUILD_NUM% GEQ 22000 (
-    set "OS_MAJOR=11"
-    set "OS_NAME=Windows 11 build %OS_BUILD%"
-) else (
-    set "OS_MAJOR=10"
-    set "OS_NAME=Windows 10 build %OS_BUILD%"
-)
-goto :eof
-
-
-:: ==========================================================
-:: UPDATE CHECK + DOWNGRADE PROTECTION
-:: ==========================================================
-:check_update
-set "REMOTE_VERSION="
-
-for /f "usebackq delims=" %%V in (`
-  powershell -NoProfile -Command "try { (Invoke-WebRequest -UseBasicParsing '%UPDATE_URL%').Content.Trim() } catch { '' }"
-`) do set "REMOTE_VERSION=%%V"
-
-if not defined REMOTE_VERSION (
-    set "UPDATE_STATUS=update check failed     "
-    goto :eof
-)
-
-if /i "%REMOTE_VERSION%"=="%FIXER_VERSION%" (
-    set "UPDATE_STATUS=latest version          "
-    goto :eof
-)
-
-set "UPDATE_STATUS=update available -> %REMOTE_VERSION%"
-call :auto_update
-goto :eof
-
-
-:: ==========================================================
-:: AUTO UPDATE
-:: ==========================================================
-:auto_update
-set "NEW_FILE=%TEMP%\adrians_fixer_new.bat"
-
-powershell -NoProfile -Command ^
-"try { Invoke-WebRequest '%UPDATE_SCRIPT_URL%' -OutFile '%NEW_FILE%' -UseBasicParsing } catch {}" >nul 2>&1
-
-if not exist "%NEW_FILE%" (
-    set "UPDATE_STATUS=update failed           "
-    goto :eof
-)
-
-set "SCRIPT_PATH=%~f0"
-set "BACKUP_FILE=%~dp0adrians_fixer_backup.bat"
-set "UPDATER=%TEMP%\af_updater.bat"
-
-(
-echo @echo off
-echo copy /y "%SCRIPT_PATH%" "%BACKUP_FILE%" ^>nul
-echo copy /y "%NEW_FILE%" "%SCRIPT_PATH%" ^>nul
-echo start "" "%SCRIPT_PATH%"
-echo exit
-) > "%UPDATER%"
-
-start "" "%UPDATER%"
-exit /b
-
-
-:: ==========================================================
-:: SIMPLE ANIM
-:: ==========================================================
+:: =========================================
+:: ANIMATION
+:: =========================================
 :anim
-<nul set /p="..."
+<nul set /p=". "
+ping -n 2 127.0.0.1 >nul
+<nul set /p=". "
+ping -n 2 127.0.0.1 >nul
+<nul set /p="."
 ping -n 2 127.0.0.1 >nul
 echo.
 goto :eof
 
 
-:: ==========================================================
-:: CONFIRMATION SYSTEM
-:: ==========================================================
-:confirm
-color 0c
-echo.
-echo are you sure you want to continue?
-echo this action may change system behavior.
-echo it cannot be undone automatically.
-echo.
-set "CONFIRM="
-set /p CONFIRM= continue? (Y/N): 
-color 0b
-if /i "%CONFIRM%"=="Y" goto :eof
-set "CONFIRM=N"
-goto :eof
 
-
-:: ==========================================================
-:: RESTORE BACKUP
-:: ==========================================================
-:restorebackup
-cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
-
-set "BACKUP_FILE=%~dp0adrians_fixer_backup.bat"
-if not exist "%BACKUP_FILE%" (
-    echo no backup available.
-    pause
-    goto menu
-)
-
-copy /y "%BACKUP_FILE%" "%~f0" >nul
-echo backup restored.
-echo restarting...
-start "" "%~f0"
-exit /b
-
-
-:: ==========================================================
-:: WIN 11 ONLY FEATURE
-:: ==========================================================
-:win11reset
-cls
-
-if "%OS_MAJOR%"=="10" (
-    color 08
-    echo this feature only works on windows 11.
-    echo.
-    echo continue anyway? (Y/N)
-    set /p xx=
-    color 0b
-    if /i "!xx!" NEQ "Y" goto menu
-)
-
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
-
-echo resetting win11 shell / interface...
-call :anim
-
-taskkill /f /im explorer.exe >nul 2>&1
-reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StuckRects3" /f >nul 2>&1
-reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /f >nul 2>&1
-start explorer.exe
-
-echo done.
-pause
-goto menu
-
-
-:: ==========================================================
-:: RAM MENU
-:: ==========================================================
+:: =========================================
+:: RAM MODES + RAM CHECKER
+:: =========================================
 :rammenu
 cls
 echo.
-echo RAM CLEANER
+echo                  RAM TOOLS
 echo.
-echo   [ 1 ] light clean
-echo   [ 2 ] deep clean
-echo   [ 3 ] extreme clean
-echo   [ 4 ] back
+echo      [ 1 ] light clean
+echo      [ 2 ] deep clean
+echo      [ 3 ] extreme clean
+echo      [ 4 ] ram check (sticks info)
+echo      [ 5 ] back
 echo.
-set /p rm= choose: 
+set /p rm= choose a mode: 
 
 if "%rm%"=="1" goto ram_light
 if "%rm%"=="2" goto ram_deep
 if "%rm%"=="3" goto ram_extreme
-goto menu
+if "%rm%"=="4" goto ram_check
+if "%rm%"=="5" goto menu
+goto rammenu
 
 
+:: ===== Mode 1 – Light Clean =====
 :ram_light
 cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto rammenu
+echo running light ram clean...
+call :anim
 
 taskkill /f /im Discord.exe >nul 2>&1
 taskkill /f /im steam.exe >nul 2>&1
 taskkill /f /im EpicGamesLauncher.exe >nul 2>&1
 del /f /s /q "%temp%\*" >nul 2>&1
+
 echo done.
 pause
 goto rammenu
 
 
+:: ===== Mode 2 – Deep Clean =====
 :ram_deep
 cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto rammenu
+echo running deep ram clean...
+call :anim
 
 taskkill /f /im Discord.exe >nul 2>&1
 taskkill /f /im steam.exe >nul 2>&1
-taskkill /f /im chrome.exe >nul 2>&1
 taskkill /f /im EpicGamesLauncher.exe >nul 2>&1
-net stop SysMain >nul 2>&1
-net stop WSearch >nul 2>&1
-taskkill /f /im explorer.exe >nul 2>&1
+taskkill /f /im OneDrive.exe >nul 2>&1
+
+for %%S in (SysMain WSearch) do net stop %%S >nul 2>&1
+
 del /f /s /q "%temp%\*" >nul 2>&1
+
+taskkill /f /im explorer.exe >nul 2>&1
 start explorer.exe
+
 echo done.
 pause
 goto rammenu
 
 
+:: ===== Mode 3 – EXTREME CLEAN =====
 :ram_extreme
 cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto rammenu
+echo running EXTREME clean...
+call :anim
 
 for %%P in (
-Discord.exe steam.exe EpicGamesLauncher.exe chrome.exe Widgets.exe
-Teams.exe OneDrive.exe msedge.exe SearchApp.exe SearchHost.exe
-RuntimeBroker.exe GameBar.exe RobloxPlayerBeta.exe
+Discord.exe steam.exe EpicGamesLauncher.exe OneDrive.exe Widgets.exe
+msedge.exe chrome.exe firefox.exe GameBar.exe SearchApp.exe SearchHost.exe
+Teams.exe xboxapp.exe RuntimeBroker.exe PhoneExperienceHost.exe
 ) do taskkill /f /im %%P >nul 2>&1
 
 for %%S in (
-SysMain WSearch DiagTrack lfsvc MapsBroker DoSvc RetailDemo
+DiagTrack WSearch SysMain WerSvc WbioSrvc MapsBroker lfsvc RetailDemo
 ) do net stop %%S >nul 2>&1
 
-taskkill /f /im explorer.exe >nul 2>&1
+powershell -command "Clear-MemoryPressure" >nul 2>&1
+powershell -command "Get-Process ^| where { $_.name -eq 'Memory Compression' } ^| Stop-Process -Force" >nul 2>&1
+
 del /f /s /q "%temp%\*" >nul 2>&1
+
+taskkill /f /im explorer.exe >nul 2>&1
 start explorer.exe
+
 echo done.
 pause
 goto rammenu
 
 
-:: ==========================================================
+:: ===== RAM CHECKER =====
+:ram_check
+cls
+echo checking ram sticks...
+call :anim
+echo.
+echo if all your sticks are detected, they will be listed below:
+echo.
+
+powershell -command "Get-CimInstance Win32_PhysicalMemory ^| Select-Object BankLabel,Capacity,Manufacturer,Speed,PartNumber ^| Format-Table -AutoSize"
+
+echo.
+echo if a stick is physically installed but not listed here,
+echo windows / bios is not detecting it.
+echo.
+pause
+goto rammenu
+
+
+
+:: =========================================
 :: FAN FIX
-:: ==========================================================
+:: =========================================
 :fanfix
 cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
+echo applying fan stabilization fix...
+call :anim
 
+echo stopping spike-related services...
 for %%S in (
-SysMain DiagTrack lfsvc MapsBroker RetailDemo WSearch
+    SysMain WSearch DiagTrack WerSvc DoSvc WbioSrvc MapsBroker lfsvc RetailDemo
 ) do net stop %%S >nul 2>&1
 
+echo disabling maintenance tasks (if present)...
 schtasks /Change /TN "\Microsoft\Windows\Maintenance\WinSAT" /DISABLE >nul 2>&1
+schtasks /Change /TN "\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser" /DISABLE >nul 2>&1
+
+echo high performance power plan...
+powercfg -setactive SCHEME_MIN >nul 2>&1
+
+echo fixing cpu parking / stable freq...
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583" /v ValueMax /t REG_DWORD /d 0 /f >nul 2>&1
+
+echo fixing gpu idle oscillation...
+reg add "HKLM\System\CurrentControlSet\Control\GraphicsDrivers\PowerSettings" /v PowerPolicy /t REG_DWORD /d 1 /f >nul 2>&1
+
+echo restarting explorer...
 taskkill /f /im explorer.exe >nul 2>&1
 start explorer.exe
-echo applied.
-pause
-goto menu
 
-
-:: ==========================================================
-:: ACTIVATION FIX
-:: ==========================================================
-:activation
-cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
-
-net stop sppsvc >nul 2>&1
-cscript /nologo "%SystemRoot%\System32\slmgr.vbs" /rilc
-cscript /nologo "%SystemRoot%\System32\slmgr.vbs" /upk
-cscript /nologo "%SystemRoot%\System32\slmgr.vbs" /cpky
-net start sppsvc >nul 2>&1
-echo done.
-pause
-goto menu
-
-
-:: ==========================================================
-:: TIMER INFO
-:: ==========================================================
-:timerinfo
-cls
-echo timer resolution active (1ms)
-echo improves input latency + frame pacing
+echo.
+echo [✓] fan fix applied — spikes should stop within a few minutes.
 echo.
 pause
 goto menu
 
 
-:: ==========================================================
-:: GAME MODE
-:: ==========================================================
+
+:: =========================================
+:: GAME MODE – MAX PERFORMANCE
+:: =========================================
 :gamemode
 cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
+echo ============================================================
+echo                        GAME MODE
+echo ------------------------------------------------------------
+echo – kills background junk and overlays
+echo – disables heavy services
+echo – clears RAM and CPU hogs
+echo – forces high performance mode
+echo – resets networking
+echo – applies GPU max performance
+echo – restarts Explorer clean
+echo ============================================================
+call :anim
 
+echo killing processes...
 for %%P in (
-Discord.exe steam.exe EpicGamesLauncher.exe chrome.exe Widgets.exe
-GameBar.exe Teams.exe SearchHost.exe RuntimeBroker.exe
+Discord.exe steam.exe EpicGamesLauncher.exe OneDrive.exe
+chrome.exe msedge.exe firefox.exe opera.exe brave.exe
+GameBar.exe XboxApp.exe Widgets.exe Teams.exe
+RiotClientServices.exe epicwebhelper.exe SteamWebHelper.exe
+SearchApp.exe SearchHost.exe PhoneExperienceHost.exe
+RuntimeBroker.exe NVIDIAShare.exe NVIDIAWebHelper.exe
 ) do taskkill /f /im %%P >nul 2>&1
 
-net stop SysMain >nul 2>&1
-net stop WSearch >nul 2>&1
+echo stopping services...
+for %%S in (
+SysMain WSearch DiagTrack RetailDemo WbioSrvc MapsBroker lfsvc
+Spooler WerSvc RemoteRegistry XblAuthManager XblGameSave
+WpnService BITS UsoSvc DoSvc
+) do net stop %%S >nul 2>&1
+
+echo high performance power plan...
 powercfg -setactive SCHEME_MIN >nul 2>&1
-ipconfig /flushdns >nul 2>&1
-netsh winsock reset >nul 2>&1
-echo done.
+
+echo gpu max performance...
+reg add "HKLM\System\CurrentControlSet\Control\GraphicsDrivers\PowerSettings" /v PowerPolicy /t REG_DWORD /d 1 /f >nul 2>&1
+
+echo clearing standby memory...
+powershell -command "Clear-MemoryPressure" >nul 2>&1
+
+echo clearing dns + network...
+ipconfig /flushdns >nul
+netsh int ip reset >nul
+netsh winsock reset >nul
+
+echo restarting explorer for max FPS...
+taskkill /f /im explorer.exe >nul 2>&1
+start explorer.exe
+
+echo.
+echo [✓] Game Mode activated — PC is in max performance state.
+echo.
 pause
 goto menu
 
 
-:: ==========================================================
+
+:: =========================================
 :: MICROSOFT FIX
-:: ==========================================================
+:: =========================================
 :microsoft
 cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
+echo repairing microsoft installer / updates...
+call :anim
 
 net stop wuauserv >nul 2>&1
 net stop bits >nul 2>&1
+net stop cryptsvc >nul 2>&1
+net stop msiserver >nul 2>&1
+
 rmdir /s /q "%systemroot%\SoftwareDistribution" >nul 2>&1
+rmdir /s /q "%systemroot%\System32\catroot2" >nul 2>&1
+
 net start wuauserv >nul 2>&1
 net start bits >nul 2>&1
+net start cryptsvc >nul 2>&1
+net start msiserver >nul 2>&1
+
 echo done.
 pause
 goto menu
 
 
-:: ==========================================================
+
+:: =========================================
 :: DISCORD FIX
-:: ==========================================================
+:: =========================================
 :discord
 cls
-echo this will delete discord data.
-echo you will need to log in again.
-echo.
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
+echo fixing discord...
+call :anim
 
 taskkill /f /im discord.exe >nul 2>&1
 rmdir /s /q "%appdata%\discord" >nul 2>&1
 rmdir /s /q "%localappdata%\Discord" >nul 2>&1
-echo reinstalling...
-powershell -NoProfile -Command "Invoke-WebRequest 'https://discord.com/api/download?platform=win' -OutFile $env:TEMP\discord.exe" >nul 2>&1
+
+powershell -Command ^
+"Invoke-WebRequest 'https://discord.com/api/download?platform=win' -OutFile $env:TEMP\discord.exe"
 start "" "%TEMP%\discord.exe"
-pause
-goto menu
 
-
-:: ==========================================================
-:: STEAM FIX
-:: ==========================================================
-:steam
-cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
-
-taskkill /f /im steam.exe >nul 2>&1
-start "" "steam://flushconfig"
-pause
-goto menu
-
-
-:: ==========================================================
-:: EPIC FIX
-:: ==========================================================
-:epic
-cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
-
-taskkill /f /im EpicGamesLauncher.exe >nul 2>&1
-rmdir /s /q "%localappdata%\EpicGamesLauncher\Saved\webcache" >nul 2>&1
 echo done.
 pause
 goto menu
 
 
-:: ==========================================================
-:: GPU FIX
-:: ==========================================================
-:gpu
-cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
 
-rmdir /s /q "%localappdata%\NVIDIA" >nul 2>&1
-rmdir /s /q "%localappdata%\AMD"    >nul 2>&1
-echo driver cleanup done.
+:: =========================================
+:: STEAM FIX
+:: =========================================
+:steam
+cls
+echo fixing steam...
+call :anim
+
+taskkill /f /im steam.exe >nul 2>&1
+del /f /s /q "%programfiles(x86)%\Steam\appcache\*" >nul 2>&1
+start "" "steam://flushconfig"
+
+echo done.
 pause
 goto menu
 
 
-:: ==========================================================
+
+:: =========================================
+:: EPIC FIX (STRONGER)
+:: =========================================
+:epic
+cls
+echo fixing epic games launcher...
+call :anim
+
+echo killing epic processes...
+taskkill /f /im EpicGamesLauncher.exe >nul 2>&1
+taskkill /f /im epicwebhelper.exe >nul 2>&1
+
+echo clearing epic caches and logs...
+rmdir /s /q "%localappdata%\EpicGamesLauncher\Saved\webcache" >nul 2>&1
+rmdir /s /q "%localappdata%\EpicGamesLauncher\Saved\webcache_4147" >nul 2>&1
+rmdir /s /q "%localappdata%\EpicGamesLauncher\Saved\Logs" >nul 2>&1
+rmdir /s /q "%localappdata%\EpicGamesLauncher\Saved\Config" >nul 2>&1
+
+if exist "%programdata%\Epic\EpicGamesLauncher" (
+    rmdir /s /q "%programdata%\Epic\EpicGamesLauncher" >nul 2>&1
+)
+
+echo epic settings and cache cleared.
+echo if the launcher stays greyed, reinstall epic from their site.
+echo.
+pause
+goto menu
+
+
+
+:: =========================================
+:: GPU REPAIR + SHADER CACHE CLEAR
+:: =========================================
+:gpu
+cls
+echo repairing gpu drivers and clearing shader cache...
+call :anim
+
+echo clearing nvidia / amd / intel shader caches...
+del /f /s /q "%localappdata%\NVIDIA\DXCache\*" >nul 2>&1
+del /f /s /q "%localappdata%\NVIDIA\GLCache\*" >nul 2>&1
+del /f /s /q "%localappdata%\NVIDIA Corporation\NV_Cache\*" >nul 2>&1
+del /f /s /q "%localappdata%\Microsoft\DirectX Shader Cache\*" >nul 2>&1
+del /f /s /q "%localappdata%\D3DSCache\*" >nul 2>&1
+del /f /s /q "%appdata%\AMD\DXCache\*" >nul 2>&1
+del /f /s /q "%appdata%\AMD\GLCache\*" >nul 2>&1
+del /f /s /q "%localappdata%\Intel\ShaderCache\*" >nul 2>&1
+
+echo clearing local gpu caches...
+rmdir /s /q "%localappdata%\NVIDIA" >nul 2>&1
+rmdir /s /q "%localappdata%\AMD" >nul 2>&1
+
+echo downloading nvidia driver (example package)...
+powershell -Command ^
+"Invoke-WebRequest 'https://us.download.nvidia.com/Windows/551.86/551.86-desktop-win10-win11-64bit-international-dch-whql.exe' -OutFile $env:TEMP\nvidia.exe"
+
+start "" "%TEMP%\nvidia.exe"
+
+echo done.
+pause
+goto menu
+
+
+
+:: =========================================
 :: SYSTEM REPAIR
-:: ==========================================================
+:: =========================================
 :systemrepair
 cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
+echo running system repair...
+call :anim
 
 sfc /scannow
 dism /online /cleanup-image /restorehealth
+chkdsk C: /scan
+
+echo done.
 pause
 goto menu
 
 
-:: ==========================================================
+
+:: =========================================
 :: CLEANUP
-:: ==========================================================
+:: =========================================
 :cleanup
 cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
+echo cleaning system...
+call :anim
 
 del /f /s /q "%temp%\*" >nul 2>&1
 del /f /s /q "C:\Windows\Temp\*" >nul 2>&1
+
+echo done.
 pause
 goto menu
 
 
-:: ==========================================================
+
+:: =========================================
 :: DEBLOAT
-:: ==========================================================
+:: =========================================
 :debloat
 cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
+echo debloating windows...
+call :anim
 
 sc stop DiagTrack >nul 2>&1
 sc config DiagTrack start=disabled >nul 2>&1
-powershell -NoProfile -Command "Get-AppxPackage *xbox* ^| Remove-AppxPackage" >nul 2>&1
+powershell "Get-AppxPackage *xbox* ^| Remove-AppxPackage" >nul 2>&1
+
+echo done.
 pause
 goto menu
 
 
-:: ==========================================================
+
+:: =========================================
 :: NETWORK RESET
-:: ==========================================================
+:: =========================================
 :network
 cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
+echo resetting network...
+call :anim
 
 ipconfig /flushdns >nul
 netsh int ip reset >nul
 netsh winsock reset >nul
+
+echo done.
 pause
 goto menu
 
 
-:: ==========================================================
-:: STARTUP TOOLS
-:: ==========================================================
+
+:: =========================================
+:: STARTUP
+:: =========================================
 :startup
 cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
+echo opening startup tools...
+call :anim
 
 start "" ms-settings:startupapps
 start "" taskmgr
+
+echo done.
 pause
 goto menu
 
 
-:: ==========================================================
-:: REDISTS
-:: ==========================================================
+
+:: =========================================
+:: REDISTRIBUTABLES
+:: =========================================
 :redist
 cls
-call :confirm
-if /i "%CONFIRM%" NEQ "Y" goto menu
+echo installing redistributables...
+call :anim
 
-powershell -NoProfile -Command "Invoke-WebRequest 'https://aka.ms/vs/17/release/vc_redist.exe' -OutFile $env:TEMP\vc_redist.exe" >nul 2>&1
-start /wait "" "%TEMP%\vc_redist.exe" /install /quiet /norestart
+powershell -Command ^
+"Invoke-WebRequest 'https://download.microsoft.com/download/1/1/0/11055A2A/directx_Jun2010_redist.exe' -OutFile $env:TEMP\dx.exe"
+start /wait "" "%TEMP%\dx.exe" /Q
+
+powershell -Command ^
+"Invoke-WebRequest 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile $env:TEMP\vc.exe"
+start /wait "" "%TEMP%\vc.exe" /install /quiet /norestart
+
+echo done.
 pause
 goto menu
-
